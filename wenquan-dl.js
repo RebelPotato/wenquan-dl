@@ -1,26 +1,25 @@
-/**
- * MIT License
- *
- * Copyright (c) 2025 Chenxuan Huang
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+// ==UserScript==
+// @name         文泉学堂保护装置
+// @namespace    http://tampermonkey.net/
+// @version      2025-09-22
+// @description  try to take over the world!
+// @author       You
+// @match        https://lib-tsinghua.wqxuetang.com/*
+// @icon         https://www.google.com/s2/favicons?sz=64&domain=wqxuetang.com
+// @grant        none
+// @run-at       document-start
+// ==/UserScript==
+
+const vault = {};
+vault.log = console.log;
+const aCanvas = document.createElement("canvas");
+const aCtx = aCanvas.getContext("2d");
+vault.drawImage = Object.getPrototypeOf(aCtx).drawImage;
+
+window.revert = () => {
+  console.log = vault.log;
+  Object.getPrototypeOf(aCtx).drawImage = vault.drawImage;
+};
 
 async function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -35,7 +34,7 @@ async function downloadPage(page, scale) {
     if (imgs.length >= 6) break;
     await sleep(500);
   }
-  await sleep(1500 * (1 + Math.random()));
+  await sleep(1000 * (1 + Math.random()));
 
   const data = imgs.map((img) => ({
     img,
@@ -52,13 +51,16 @@ async function downloadPage(page, scale) {
   const imgWidth = currentOffset;
   const imgHeight = Math.max(...data.map((d) => d.height));
 
+  vault.log(`Page size: ${imgWidth}x${imgHeight}, preparing canvas...`);
+
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
   canvas.width = imgWidth * scale;
   canvas.height = imgHeight * scale;
-  data.forEach((d) =>
-    ctx.drawImage(d.img, d.offset * scale, 0, d.width * scale, d.height * scale)
-  );
+  const drawImage = vault.drawImage.bind(ctx);
+  for (const d of data) {
+    drawImage(d.img, d.offset * scale, 0, d.width * scale, d.height * scale);
+  }
 
   return {
     width: canvas.width,
@@ -67,7 +69,8 @@ async function downloadPage(page, scale) {
   };
 }
 
-async function main() {
+window.dl = async function main(start, end, scale = 1.0) {
+  revert();
   await new Promise((res) => {
     if (window.jspdf) return res();
     const script = document.createElement("script");
@@ -80,19 +83,24 @@ async function main() {
   const { jsPDF } = window.jspdf;
   // get page count
   const pb = document.getElementById("pb");
-  const pages = [...pb.childNodes].filter(
+  let pages = [...pb.childNodes].filter(
     (e) => e instanceof HTMLDivElement && e.hasAttribute("index")
   );
-  const scale = 1.0;
+  pages = pages.slice(start, end);
 
   let doc;
   for (let i = 0; i < pages.length; i++) {
+    vault.log(`Processing page ${i + 1}/${pages.length}`);
     const img = await downloadPage(pages[i], scale);
+    vault.log(
+      `Adding page ${i + 1}/${pages.length}: ${img.width}x${img.height}`
+    );
     if (!doc) doc = new jsPDF({ format: [img.width, img.height], unit: "px" });
     else doc.addPage([img.width, img.height]);
     doc.addImage(img.url, "WEBP", 0, 0, img.width, img.height);
   }
 
   const title = document.querySelector(".read-header-name").innerText;
+  vault.log(`Saving PDF: as {title}.pdf`);
   doc.save(title + ".pdf");
-}
+};
