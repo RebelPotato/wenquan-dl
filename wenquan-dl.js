@@ -1,3 +1,5 @@
+// This is free and unencumbered software released into the public domain.
+// For more information, please refer to <https://unlicense.org/>
 // ==UserScript==
 // @name         文泉学堂保护装置
 // @namespace    http://tampermonkey.net/
