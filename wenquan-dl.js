@@ -1,16 +1,17 @@
-// This is free and unencumbered software released into the public domain.
-// For more information, please refer to <https://unlicense.org/>
 // ==UserScript==
 // @name         文泉学堂保护装置
 // @namespace    http://tampermonkey.net/
 // @version      2025-09-22
-// @description  try to take over the world!
-// @author       You
+// @description  把文泉学堂的书籍下载成 PDF 文件。
+// @author       RebelPotato
 // @match        https://lib-tsinghua.wqxuetang.com/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=wqxuetang.com
 // @grant        none
 // @run-at       document-start
+// @license      Unlicense
 // ==/UserScript==
+// This is free and unencumbered software released into the public domain.
+// For more information, please refer to <https://unlicense.org/>
 
 const vault = {};
 vault.log = console.log;
@@ -28,15 +29,21 @@ async function sleep(ms) {
 }
 
 async function downloadPage(page, scale) {
-  page.scrollIntoView();
+  page.scrollIntoView({ behavior: "smooth" });
 
   let imgs;
+  const now = Date.now();
   while (1) {
     imgs = [...page.getElementsByClassName("plg")[0].childNodes];
     if (imgs.length >= 6) break;
-    await sleep(500);
+    await sleep(500 * (1 + Math.random()));
+    window.scrollBy(0, window.innerHeight * 0.1 * (Math.random() - 0.3));
   }
   await sleep(1000 * (1 + Math.random()));
+  const elapsed = Date.now() - now;
+  vault.log(`Page loaded in ${elapsed.toFixed(1)}s.`);
+  await sleep(elapsed * 0.5 * (1 + Math.random()) * 3); // advanced technique to avoid detection
+  page.scrollIntoView({ behavior: "smooth" });
 
   const data = imgs.map((img) => ({
     img,
