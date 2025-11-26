@@ -6,7 +6,8 @@
 // @author       RebelPotato
 // @match        https://lib-tsinghua.wqxuetang.com/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=wqxuetang.com
-// @grant        none
+// @require      https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js
+// @grant        GM_registerMenuCommand
 // @run-at       document-start
 // @license      Unlicense
 // ==/UserScript==
@@ -78,17 +79,9 @@ async function downloadPage(page, scale) {
   };
 }
 
-window.dl = async function main(start, end, scale = 1.0) {
+window.dl = async function (start, end, scale = 1.0) {
   revert();
-  await new Promise((res) => {
-    if (window.jspdf) return res();
-    const script = document.createElement("script");
-    script.src =
-      "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
-    script.onload = res;
-    document.body.appendChild(script);
-  });
-  if (!window.jspdf) return;
+  vault.log(`Downloading pages [${start}, ${end}) with scale ${scale}.`);
   const { jsPDF } = window.jspdf;
   // get page count
   const pb = document.getElementById("pb");
@@ -110,6 +103,34 @@ window.dl = async function main(start, end, scale = 1.0) {
   }
 
   const title = document.querySelector(".read-header-name").innerText;
-  vault.log(`Saving PDF: as {title}.pdf`);
+  vault.log(`Saving PDF: as ${title}.pdf`);
   doc.save(title + ".pdf");
 };
+window.dl_scale = 1.0;
+
+GM_registerMenuCommand("Download", (ev) => {
+  const input = prompt("Enter page range (e.g., 1-10):", "1-10");
+  const [start, end] = input.split("-").map((x) => parseInt(x.trim()));
+  if (isNaN(start) || isNaN(end) || start < 0 || end <= start) {
+    alert("Invalid page range.");
+    return;
+  }
+  alert(
+    `Starting download from page ${start} to ${end} with scale ${window.dl_scale}.`
+  );
+  window.dl(start - 1, end, window.dl_scale);
+});
+
+GM_registerMenuCommand("Set Scale", (ev) => {
+  const input = prompt(
+    "Enter scale factor (e.g., 1.0 for original size, 0.5 for half size):",
+    window.dl_scale.toString()
+  );
+  const scale = parseFloat(input);
+  if (isNaN(scale) || scale <= 0) {
+    alert("Invalid scale factor.");
+    return;
+  }
+  window.dl_scale = scale;
+  alert(`Scale factor set to ${window.dl_scale}.`);
+});
